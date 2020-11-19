@@ -1,5 +1,5 @@
 #拼接字符串并换行## -*- coding: UTF-8 -*-
-#@author: JACK YANG 201902-->10-->202008  yyjqr789@sina.com
+#@author: JACK YANG 201902-->10-->202008->10  yyjqr789@sina.com
 #!/usr/bin/python3
 import smtplib
 #from smtplib import SMTP
@@ -23,21 +23,20 @@ import json
 import codecs # use for write a file 0708
 
 
+
 my_sender='840056598@qq.com' #发件人邮箱账号，为了后面易于维护，所以写成了变量
-receiver='yyjqr789@sina.com' #收件人邮箱账号，为了后面易于维护，所以写成了变量
+receiver='yyjqr789@sina.com' #收件人邮箱账号
 #receiver=my_sender
-_pwd = "XXX"  #需在qq邮箱开启SMTP服务并获取授权码
+_pwd = "xxx"  #需在qq邮箱开启SMTP服务并获取授权码
 
 
 def make_img_msg(fn):
-    #msg = MIMEMultipart('alternative')
-    
     f=open(fn,'rb') # r--->rb read+binary 0603
     data=f.read()
     f.close()
     image=MIMEImage(data,name=fn.split("/")[2])  #以/分隔目录文件/tmp/xxx.jpg，只要后面的文件名 20190222！
     #image.add_header('Content-ID','attachment;filenam="%s" ' %fn)
-    image.add_header('Content-ID','EangelCam2019')  #发送的图片附件名称 0603
+    image.add_header('Content-ID','EangelCam2020')  #发送的图片附件名称 0603
     return image
 
 def get_file_list(file_path):
@@ -96,7 +95,33 @@ class GrabNews2():
                 #article.append(url.strip())
                 print(newsUrl)
                 self.NewsList.append({string:newsUrl})
-   
+
+
+class GrabNewsTechnet():
+    def __init__(self):
+        self.NewsList = []
+    def getNews(self):
+        url = 'http://stdaily.com/'
+        r2 = requests.get(url)
+        r2.encoding = 'utf-8'
+
+        soup = BeautifulSoup(r2.text, "html.parser")
+        for news in soup.select('div.fp_subtitle   a'):  ##ti_news---->fp_title
+        #for news in soup.select('div.ti_news   a'):
+           tittle=news.text
+           print(news.text)
+           for string in news.stripped_strings:
+                #tittle=news.text
+                #article.append(tittle.strip())   #strip去处多余空格
+                #print(news.text)
+                if news.attrs['href'].startswith('http'):
+                    newsUrl=news.attrs['href']
+                else:
+                    newsUrl=url+news.attrs['href']
+                #article.append(url.strip())
+                print(newsUrl)
+                self.NewsList.append({string:newsUrl})
+                
 class GrabNewsAI():
     def __init__(self):
         self.NewsList = []
@@ -134,11 +159,24 @@ def writeNews():
             fp.write('<hr />')
     fp.close()
 
+
+
 def writeNews2():
     grabNews = GrabNews2()
     grabNews.getNews()
     #print("test write 0711")
     fp = codecs.open('news%s.html' % date , 'a', 'utf-8')  #w---->a  改为追加内容的模式07
+    for news in grabNews.NewsList:
+        for key in news.keys(): # key:value. key是新闻标题，value是新闻链接
+            fp.write('<a href=%s>%s</a>' % (news[key], '*'+key))
+            fp.write('<hr />')
+    fp.close()
+
+def writeNewsTechNet():
+    grabNews = GrabNewsTechnet()
+    grabNews.getNews()
+  
+    fp = codecs.open('news%s.html' % date , 'a', 'utf-8')
     for news in grabNews.NewsList:
         for key in news.keys(): # key:value. key是新闻标题，value是新闻链接
             fp.write('<a href=%s>%s</a>' % (news[key], '*'+key))
@@ -165,7 +203,8 @@ def mail():
     msg = MIMEMultipart()  # test two html file 201907
     writeNewsAI()
     writeNews()
-    writeNews2()
+    #writeNews2()
+    writeNewsTechNet()
     fp = open('news%s.html' % date,'rb+')
     techHtml = MIMEText(fp.read(), 'html', 'utf-8')  #内容, 格式, 编码 English web 20190711--->fp.read().decode('utf-8')
     msg.attach(techHtml)
@@ -187,7 +226,7 @@ def mail():
     server.login(my_sender,_pwd)  #括号中对应的是发件人邮箱账号、邮箱密码
     server.sendmail(my_sender,[receiver,],msg.as_string())  #括号中对应的是发件人邮箱账号、收件人邮箱账号、发送邮件
     print ('SEND AI NEWS  OK')
-    server.quit()  #这句是关闭连接的意思
+    server.quit()  #关闭连接
   except Exception as e:  #如果try中的语句没有执行，则会执行下面的ret=False
     print (str(e))
     ret=False
