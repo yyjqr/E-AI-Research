@@ -1,5 +1,5 @@
 #拼接字符串并换行## -*- coding: UTF-8 -*-
-#@author: JACK YANG 201902-->10-->202008  yyjqr789@sina.com
+#@author: JACK YANG 201902-->10-->202008->202011  yyjqr789@sina.com
 #!/usr/bin/python3
 import smtplib
 #from smtplib import SMTP
@@ -22,12 +22,11 @@ import re
 import json
 import codecs # use for write a file 0708
 
-#import RPi.GPIO as GPIO
 
 my_sender='840056598@qq.com' #发件人邮箱账号，为了后面易于维护，所以写成了变量
-receiver='yyjqr789@sina.com' #收件人邮箱账号，为了后面易于维护，所以写成了变量
+receiver='yyjqr789@sina.com' #收件人邮箱账号
 #receiver=my_sender
-_pwd = "xxx"  #需在qq邮箱开启SMTP服务并获取授权码
+_pwd = "XXX"  #需在qq邮箱开启SMTP服务并获取授权码
 
 
 def make_img_msg(fn):
@@ -38,7 +37,7 @@ def make_img_msg(fn):
     f.close()
     image=MIMEImage(data,name=fn.split("/")[2])  #以/分隔目录文件/tmp/xxx.jpg，只要后面的文件名 20190222！
     #image.add_header('Content-ID','attachment;filenam="%s" ' %fn)
-    image.add_header('Content-ID','EangelCam2019')  #发送的图片附件名称 0603
+    image.add_header('Content-ID','EangelCam2021')  #发送的图片附件名称 0603
     return image
 
 def get_file_list(file_path):
@@ -54,6 +53,16 @@ def get_file_list(file_path):
         dir_list = sorted(dir_list,  key=lambda x: os.path.getmtime(os.path.join(file_path, x)))
         # print(dir_list)
         return dir_list
+
+array=['机器人','新冠','量子','物联网','硬科技','数字','5G','Robot','robot','Robotics','COVID','Digital','AI','IOT','ML']
+def findKeyWordInNews(str):
+   #print(str)
+   for i in range(15):
+       
+       if array[i] in str:
+           #print("test")
+           return True
+   return False
 
 class GrabNews():
     def __init__(self):
@@ -90,14 +99,15 @@ class GrabNews2():
            tittle=news.text
            print(news.text)
            for string in news.stripped_strings:
-                #tittle=news.text
-                #article.append(tittle.strip())   #strip去处多余空格
-                #print(news.text)
                 newsUrl=news.attrs['href']
                 #article.append(url.strip())
                 print(newsUrl)
                 self.NewsList.append({string:newsUrl})
+                
 
+         
+    
+    
 
 class GrabNewsTechnet():
     def __init__(self):
@@ -108,17 +118,23 @@ class GrabNewsTechnet():
         r2.encoding = 'utf-8'
 
         soup = BeautifulSoup(r2.text, "html.parser")
-        for news in soup.select('.fp_subtitle  a'):  ##ti_news---->fp_title
-           tittle=news.text
-           print(news.text)
-           for string in news.stripped_strings:
-                #tittle=news.text
-                #article.append(tittle.strip())   #strip去处多余空格
-                #print(news.text)
-                newsUrl=news.attrs['href']
-                #article.append(url.strip())
-                print(newsUrl)
-                self.NewsList.append({string:newsUrl})
+        for news in soup.select('div.fp_subtitle   a'):  ##ti_news---->fp_title
+        #for news in soup.select('div.ti_news   a'):
+            if findKeyWordInNews(news.text):
+               tittle=news.text
+               print(news.text)
+               for string in news.stripped_strings:
+                    if news.attrs['href'].startswith('http'):
+                        newsUrl=news.attrs['href']
+                    else:
+                        newsUrl=url+news.attrs['href']
+                    #article.append(url.strip())
+                    
+                    if {string:newsUrl} not in self.NewsList:
+                        print('newsUrl', newsUrl)
+                        self.NewsList.append({string:newsUrl})
+                    else:
+                        print("------- ")
                 
 class GrabNewsAI():
     def __init__(self):
@@ -131,14 +147,15 @@ class GrabNewsAI():
         soup = BeautifulSoup(r2.text, "html.parser")
         
         for news in soup.select('.searchtitle   a'):
-           tittle=news.text
-           print(news.text)
-           for string in news.stripped_strings:
-                
-                newsUrl=news.attrs['href']
-                #article.append(url.strip())
-                print(newsUrl)
-                self.NewsList.append({string:newsUrl})
+            if findKeyWordInNews(news.text):
+               tittle=news.text
+               print(news.text)
+               for string in news.stripped_strings:
+                    
+                    newsUrl=news.attrs['href']
+                    #article.append(url.strip())
+                    print(newsUrl)
+                    self.NewsList.append({string:newsUrl})
 
 # get the sys date and hour,minutes!!
 now_time = datetime.now()
