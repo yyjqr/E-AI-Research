@@ -198,10 +198,6 @@ class GrabNewsProduct():
                print(news.text)
                str_news=news.txt
                #print("After filter\n")
-               #if str_news !="":
-                   #newsHtml=str_news.decode('utf-8') # python3
-                   #newHtml = newsHtml.replace('/n',"") #将换行符替换成空
-                   #print("After filter\n")
                for string in news.stripped_strings:
                     
                     if news.attrs['href'].startswith('http'):
@@ -305,7 +301,7 @@ class GrabNewsTechnet():
                     else :
                         print("Error,this url can't browse!!\n")
 
-                    self.NewsList.append({string:newsUrl})
+                    #self.NewsList.append({string:newsUrl})
 
 
 
