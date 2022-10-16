@@ -1,10 +1,8 @@
 
 import pymysql
 import logging
-import pandas as pd
  
 HOST = 'localhost'   #数据库登录，使用ip，登录不进去
-#USER = 'root'
 USER = 'robot'
 PASSWORD = 'robot'
 PORT = 3306
@@ -16,7 +14,7 @@ CHAREST = 'utf8'
 global conn 
 conn= pymysql.connect(host=HOST, user=USER, password=PASSWORD, port=PORT, database=DATABASE,
                           charset=CHAREST)
-print("connect database status %s...",conn) 
+#print("connect database status %s...",conn) 
 #写入数据到数据库中
 def writeDb(sql,db_data=()):
     """
