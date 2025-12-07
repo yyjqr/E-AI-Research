@@ -1,4 +1,5 @@
 ##	To set this up, you can use this sample script and check the setup instructions.
+https://read.readwise.io/feed/unseen
 	https://www.reddit.com/r/ClaudeAI/comments/1pfxqlb/30_claude_code_tips_from_basics_to_advanced/?__readwiseLocation=
 Google just released their full breakdown for the new Gemini 3 Pro Vision model. Interestingly, they have finally included Claude Opus 4.5 in the direct comparison, acknowledging it as the standard to beat.
 
