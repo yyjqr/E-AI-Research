@@ -6,12 +6,17 @@ import json
 import shutil
 import subprocess
 import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from urllib.parse import urlparse
+from datetime import datetime
 from bs4 import BeautifulSoup
 
 # --- Configuration & Constants ---
 CONFIG_FILE = "hunter_config.json"
 LOG_FILE = "hunter_execution.log"
+TRACKER_FILE = "hunter_tracker.json" # New: Track processed repos
 
 class Logger:
     @staticmethod
@@ -34,54 +39,149 @@ class ConfigManager:
                 "https://github.com/Hannibal046/Awesome-LLM",
                 "https://github.com/steven2358/awesome-generative-ai"
             ],
-            "keywords": ["iot", "robotics", "automation", "agent", "autonomous"],
+            "keywords": [
+                "robotics", "automation", "agent", "autonomous", "slam", "ros",
+                "artificial-intelligence", "deep-learning", "reinforcement-learning",
+                "computational-physics", "scientific-computing", "simulation"
+            ],
             "min_stars": 200,
+            "high_quality_stars": 2000, # New threshold
             "max_repos_to_process": 5,
             "workspace_dir": "hunter_workspace",
-            "use_github_api": True
+            "use_github_api": True,
+            "github_token": "", # Optional: Add token to increase API limits
+            "email_config": {
+                "enabled": False,
+                "smtp_server": "smtp.gmail.com",
+                "smtp_port": 587,
+                "sender_email": "your_email@gmail.com",
+                "sender_password": "your_app_password",
+                "receiver_email": "your_email@gmail.com"
+            }
         }
 
-class NetworkUtils:
+class RepoTracker:
+    """Tracks processing history to avoid redundancy."""
     def __init__(self):
+        self.data = {}
+        if os.path.exists(TRACKER_FILE):
+            try:
+                with open(TRACKER_FILE, 'r') as f:
+                    self.data = json.load(f)
+            except:
+                pass
+
+    def save(self):
+        with open(TRACKER_FILE, 'w') as f:
+            json.dump(self.data, f, indent=2)
+
+    def should_process(self, url):
+        if url not in self.data:
+            return True
+        
+        record = self.data[url]
+        # If previously failed build, skip unless it's been a month
+        if record.get("status") == "build_failed":
+            last_try = datetime.strptime(record.get("last_processed"), "%Y-%m-%d")
+            if (datetime.now() - last_try).days < 30:
+                return False
+        
+        # If success, skip unless forced (logic handled elsewhere)
+        if record.get("status") == "success":
+            return False
+            
+        return True
+
+    def update(self, url, status, details=None):
+        self.data[url] = {
+            "last_processed": datetime.now().strftime("%Y-%m-%d"),
+            "status": status,
+            "details": details or {}
+        }
+        self.save()
+
+class EmailNotifier:
+    def __init__(self, config):
+        self.config = config.get("email_config", {})
+        self.buffer = []
+
+    def add_success(self, repo_data):
+        self.buffer.append(repo_data)
+        if len(self.buffer) >= 3:
+            self.send_notification()
+            self.buffer = [] # Reset
+
+    def send_notification(self):
+        if not self.config.get("enabled"):
+            Logger.log("[Email] Notification disabled.")
+            return
+
+        msg = MIMEMultipart()
+        msg['From'] = self.config['sender_email']
+        msg['To'] = self.config['receiver_email']
+        msg['Subject'] = f"[AgentHunter] Found {len(self.buffer)} High-Quality Repos"
+
+        body = "The following high-quality repositories were successfully compiled/run:\n\n"
+        for repo in self.buffer:
+            body += f"Name: {repo['name']}\n"
+            body += f"URL: {repo['url']}\n"
+            body += f"Stars: {repo['stars']}\n"
+            body += f"Description: {repo['description']}\n"
+            body += "-" * 20 + "\n"
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        try:
+            server = smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port'])
+            server.starttls()
+            server.login(self.config['sender_email'], self.config['sender_password'])
+            server.send_message(msg)
+            server.quit()
+            Logger.log("[Email] Notification sent successfully.")
+        except Exception as e:
+            Logger.log(f"[Email] Failed to send: {e}")
+
+class NetworkUtils:
+    def __init__(self, token=None):
         self.session = requests.Session()
-        self.session.headers.update({
+        
+        # Retry strategy
+        adapter = requests.adapters.HTTPAdapter(
+            max_retries=requests.adapters.Retry(
+                total=3, 
+                backoff_factor=1, 
+                status_forcelist=[429, 500, 502, 503, 504]
+            )
+        )
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
+        headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
+        }
+        if token:
+            headers['Authorization'] = f'token {token}'
+        self.session.headers.update(headers)
 
     def fetch_content(self, url):
-        """Try requests, fallback to curl."""
         try:
             resp = self.session.get(url, timeout=15)
             if resp.status_code == 200:
                 return resp.text
         except Exception as e:
             Logger.log(f"[Net] Requests failed for {url}: {e}")
-        
-        # Fallback to curl
-        try:
-            res = subprocess.run(["curl", "-L", "-s", url], capture_output=True, timeout=20)
-            if res.returncode == 0 and res.stdout:
-                return res.stdout.decode('utf-8', errors='ignore')
-        except Exception as e:
-            Logger.log(f"[Net] Curl failed for {url}: {e}")
-        
         return None
     
     def fetch_json(self, url, params=None):
-        """Fetch JSON data (for API)."""
         try:
             resp = self.session.get(url, params=params, timeout=10)
             if resp.status_code == 200:
                 return resp.json()
-            else:
-                # Logger.log(f"[Net] API Error {resp.status_code}: {resp.text}")
-                pass
         except Exception as e:
             Logger.log(f"[Net] API Request failed: {e}")
         return None
 
 class GitHubSearchCollector:
-    """Uses GitHub Search API to find repositories."""
     def __init__(self, net_utils, config):
         self.net = net_utils
         self.keywords = config.get("keywords", [])
@@ -89,157 +189,142 @@ class GitHubSearchCollector:
         self.api_url = "https://api.github.com/search/repositories"
 
     def collect_candidates(self):
-        candidates = {} # {url: source_description}
+        candidates = {} 
         Logger.log("[API Collector] Starting GitHub API Search...")
         
         for kw in self.keywords:
-            # Construct query: keyword + language:python + stars constraint
-            query = f"{kw} stars:>{self.min_stars}"
-            params = {
-                "q": query,
-                "sort": "stars",
-                "order": "desc",
-                "per_page": 5  # Limit per keyword to avoid rate limits
-            }
-            
-            Logger.log(f"[API Collector] Searching for: '{query}'")
-            data = self.net.fetch_json(self.api_url, params)
-            
-            if data and "items" in data:
-                for item in data["items"]:
-                    html_url = item.get("html_url")
-                    if html_url:
-                        candidates[html_url] = f"GitHub API (Query: {kw})"
-            
-            # Sleep briefly to respect unauthenticated rate limits (10 req/min)
-            time.sleep(2)
-            
-        Logger.log(f"[API Collector] Found {len(candidates)} candidates via API.")
+            # Search for C++, Python, C
+            for lang in ["python", "c++", "c"]:
+                query = f"{kw} language:{lang} stars:>{self.min_stars}"
+                params = {"q": query, "sort": "stars", "order": "desc", "per_page": 3}
+                
+                data = self.net.fetch_json(self.api_url, params)
+                if data and "items" in data:
+                    for item in data["items"]:
+                        html_url = item.get("html_url")
+                        if html_url:
+                            candidates[html_url] = f"GitHub API ({kw}/{lang})"
+                time.sleep(2)
         return candidates
 
 class SourceCollector:
-    """Scrapes specific 'Awesome' lists or pages."""
     def __init__(self, net_utils, config):
         self.net = net_utils
         self.sources = config.get("sources", [])
 
     def collect_candidates(self):
-        candidates = {} # {url: source_url}
+        candidates = {}
         for source in self.sources:
-            Logger.log(f"[Page Collector] Scraping source: {source}")
             content = self.net.fetch_content(source)
-            if not content:
-                if "github.com" in source and "blob" in source:
-                    raw_url = source.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
-                    Logger.log(f"[Page Collector] Trying raw URL: {raw_url}")
-                    content = self.net.fetch_content(raw_url)
-            
             if content:
                 matches = re.findall(r'github\.com/([a-zA-Z0-9\-_]+)/([a-zA-Z0-9\-_]+)', content)
                 for user, repo in matches:
                     if user.lower() not in ['topics', 'site', 'features', 'about', 'contact', 'pricing', 'sponsors', 'login', 'join']:
                         full_url = f"https://github.com/{user}/{repo}"
-                        if full_url not in candidates:
-                            candidates[full_url] = source
-        
-        Logger.log(f"[Page Collector] Found {len(candidates)} unique candidates.")
+                        candidates[full_url] = source
         return candidates
 
 class RepoAnalyzer:
     def __init__(self, net_utils, config):
         self.net = net_utils
+        self.config = config
         self.keywords = [k.lower() for k in config.get("keywords", [])]
         self.min_stars = config.get("min_stars", 0)
-        self.use_api = config.get("use_github_api", False)
+        self.hq_stars = config.get("high_quality_stars", 2000)
+
+    def get_contributors_count(self, owner, repo):
+        # GitHub API usually paginates. Getting > 100 requires checking link headers or page 2
+        url = f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=1&anon=true"
+        try:
+            resp = self.net.session.get(url)
+            if "link" in resp.headers:
+                # Parse 'last' page from Link header
+                links = resp.headers["link"]
+                if 'rel="last"' in links:
+                    match = re.search(r'[?&]page=(\d+)[^>]*>; rel="last"', links)
+                    if match:
+                        return int(match.group(1))
+            # Fallback: length of current page (max 100 if per_page=100)
+            return 1 
+        except:
+            return 0
 
     def analyze(self, repo_url):
-        """Returns dict of metadata if repo is valuable, else None."""
+        time.sleep(1.5) # Rate limit protection
+        parts = urlparse(repo_url).path.strip("/").split("/")
+        if len(parts) < 2: return None
+        owner, repo_name = parts[0], parts[1]
         
-        # Try to get metadata via API first if enabled (more accurate dates)
-        api_data = None
-        if self.use_api:
-            parts = urlparse(repo_url).path.strip("/").split("/")
-            if len(parts) >= 2:
-                api_url = f"https://api.github.com/repos/{parts[0]}/{parts[1]}"
-                api_data = self.net.fetch_json(api_url)
+        api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
+        api_data = self.net.fetch_json(api_url)
+        
+        # Fallback if API fails but we have a URL (likely from an awesome list)
+        if not api_data:
+            Logger.log(f"    [Analyzer] API failed for {repo_name}, using fallback.")
+            return {
+                "url": repo_url,
+                "name": repo_name,
+                "stars": 0,
+                "description": "Metadata fetch failed (Rate Limit)",
+                "topics": [],
+                "created_at": "",
+                "updated_at": "",
+                "contributors": 0,
+                "is_high_quality": True, # Assume 'awesome' list agents are high quality enough to try
+                "hq_reasons": ["Source: Awesome List (Fallback)"],
+                "score": 50 # Default score
+            }
 
-        content = self.net.fetch_content(repo_url)
-        if not content:
-            return None
-        
-        soup = BeautifulSoup(content, 'html.parser')
-        
-        # 1. Extract Stars
-        stars = 0
-        if api_data:
-            stars = api_data.get("stargazers_count", 0)
-        else:
-            try:
-                star_elem = soup.select_one('span#repo-stars-counter-star')
-                if not star_elem:
-                    star_elem = soup.select_one('.social-count')
-                
-                if star_elem:
-                    txt = star_elem.get_text(strip=True).replace(',', '')
-                    if 'k' in txt:
-                        stars = int(float(txt.replace('k', '')) * 1000)
-                    else:
-                        stars = int(txt)
-            except:
-                pass
+        stars = api_data.get("stargazers_count", 0)
+        # Relax constraints: if it's in our list, it's worth checking even if small
+        # if stars < self.min_stars: return None 
 
-        if stars < self.min_stars:
-            return None
+        desc = api_data.get("description") or ""
+        topics = api_data.get("topics", [])
+        created_at = api_data.get("created_at", "")
+        updated_at = api_data.get("updated_at", "")
+        
+        # --- High Quality Check ---
+        is_high_quality = False
+        hq_reasons = []
 
-        # 2. Extract Description & Topics
-        desc = api_data.get("description", "") if api_data else ""
-        if not desc:
-            desc_elem = soup.select_one('p.f4.my-3')
-            if desc_elem:
-                desc = desc_elem.get_text(strip=True)
-        
-        topics = api_data.get("topics", []) if api_data else []
-        if not topics:
-            for t in soup.select('a.topic-tag'):
-                topics.append(t.get_text(strip=True))
-        
-        # 3. Extract Dates
-        created_at = "Unknown"
-        updated_at = "Unknown"
-        
-        if api_data:
-            created_at = api_data.get("created_at", "Unknown")
-            updated_at = api_data.get("updated_at", "Unknown")
-        else:
-            # Try to find relative-time in HTML
-            rel_times = soup.select('relative-time')
-            if rel_times:
-                # Usually the first one in file list header is latest commit
-                updated_at = rel_times[0].get('datetime', 'Unknown')
+        # 1. Stars
+        if stars >= self.hq_stars:
+            hq_reasons.append("High Stars")
 
-        # 4. Calculate Relevance Score
-        full_text = (str(desc) + " " + " ".join(topics) + " " + repo_url).lower()
+        # 2. Recent Updates (2024/2025)
+        last_update_dt = datetime.strptime(updated_at, "%Y-%m-%dT%H:%M:%SZ")
+        if last_update_dt.year >= 2024:
+            hq_reasons.append("Active 2024+")
+        
+        # 3. Contributors (Expensive call, only do if other criteria met)
+        contributors = 0
+        if len(hq_reasons) >= 2:
+            contributors = self.get_contributors_count(owner, repo_name)
+            if contributors > 100:
+                hq_reasons.append("Large Community")
+                is_high_quality = True # Mark as HQ if it has stars, recent updates AND community
+
+        # 4. Domain Relevance
+        full_text = (str(desc) + " " + " ".join(topics)).lower()
         score = 0
-        matched = []
         for kw in self.keywords:
-            if kw in full_text:
-                score += 1
-                matched.append(kw)
-        
-        if score == 0 and stars < 2000:
-            return None
+            if kw in full_text: score += 1
         
         final_score = score * 10 + (stars / 1000.0)
-        
+        if is_high_quality: final_score += 50 # Boost HQ repos
+
         return {
             "url": repo_url,
-            "name": repo_url.split('/')[-1],
+            "name": repo_name,
             "stars": stars,
             "description": desc,
-            "keywords": matched,
             "topics": topics,
             "created_at": created_at,
             "updated_at": updated_at,
+            "contributors": contributors,
+            "is_high_quality": is_high_quality,
+            "hq_reasons": hq_reasons,
             "score": final_score
         }
 
@@ -251,52 +336,83 @@ class BuilderRunner:
 
     def setup_venv(self):
         if not os.path.exists(self.venv_dir):
-            Logger.log(f"[Env] Creating venv in {self.venv_dir}")
             subprocess.run([sys.executable, "-m", "venv", self.venv_dir], check=True)
         self.python_bin = os.path.join(self.venv_dir, "bin", "python")
         self.pip_bin = os.path.join(self.venv_dir, "bin", "pip")
+        
+        # Pre-install common scientific/AI libs to increase success rate
+        # This helps even if requirements.txt is missing or broken
+        Logger.log("[Venv] Pre-installing common libraries...")
+        common_libs = ["numpy", "requests", "tqdm"]
+        subprocess.run([self.pip_bin, "install"] + common_libs, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def process_repo(self, repo_data):
         repo_name = repo_data['name']
         target_dir = os.path.join(self.workspace_dir, repo_name)
         
-        Logger.log(f"--- Processing {repo_name} (Score: {repo_data['score']:.1f}) ---")
-        Logger.log(f"    URL: {repo_data['url']}")
+        Logger.log(f"--- Processing {repo_name} ---")
         
-        # 1. Clone or Update
-        repo_ready = False
-        if os.path.exists(target_dir) and os.path.exists(os.path.join(target_dir, ".git")):
-            Logger.log("    [Git] Repository exists. Updating...")
-            try:
-                subprocess.run(["git", "pull"], cwd=target_dir, check=True, capture_output=True, timeout=60)
-                Logger.log("    [Git] Update Success")
-                repo_ready = True
-            except Exception:
-                Logger.log("    [Git] Update Failed. Re-cloning...")
-                shutil.rmtree(target_dir)
+        # Clone
+        if os.path.exists(target_dir):
+            shutil.rmtree(target_dir) # Clean start for build consistency
         
-        if not repo_ready:
-            if os.path.exists(target_dir):
-                shutil.rmtree(target_dir)
-            if not self._clone_repo(repo_data['url'], target_dir):
-                return
+        if not self._clone_repo(repo_data['url'], target_dir):
+            return False, {"name": repo_name, "url": repo_data['url'], "success": False, "error": "Clone failed"}
 
-        # 2. Detect Language & Build
+        # Detect & Build
         languages = self._detect_languages(target_dir)
-        Logger.log(f"    [Lang] Detected: {', '.join(languages)}")
-
+        readme_summary = self._extract_readme_summary(target_dir)
+        success = False
+        
         if "C++" in languages or "C" in languages:
-            self._build_and_run_cpp(target_dir)
+            if self._build_and_run_cpp(target_dir): success = True
         
         if "Python" in languages:
             self._install_python_deps(target_dir)
-            self._attempt_run_python(target_dir)
+            if self._attempt_run_python(target_dir): success = True
+
+        repo_info = {
+            "name": repo_name,
+            "url": repo_data['url'],
+            "stars": repo_data['stars'],
+            "languages": languages,
+            "readme_summary": readme_summary,
+            "success": success
+        }
+        return success, repo_info
+
+    def _extract_readme_summary(self, target_dir):
+        readme_path = None
+        if not os.path.exists(target_dir): return "Directory not found."
+        for f in os.listdir(target_dir):
+            if f.lower() == "readme.md":
+                readme_path = os.path.join(target_dir, f)
+                break
+        
+        if readme_path:
+            try:
+                with open(readme_path, 'r', encoding='utf-8') as rf:
+                    lines = rf.readlines()
+                    summary = []
+                    started = False
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            if started: break
+                            continue
+                        if line.startswith(("#", "!", "[", "*", "-", "```")):
+                            continue
+                        summary.append(line)
+                        started = True
+                    return " ".join(summary)[:400] + "..." if summary else "No descriptive text found in README."
+            except:
+                pass
+        return "README.md not found."
 
     def _clone_repo(self, url, target_dir):
         try:
             subprocess.run(["git", "clone", "--depth", "1", url, target_dir], 
                            check=True, capture_output=True)
-            Logger.log("    [Clone] Success")
             return True
         except subprocess.CalledProcessError:
             Logger.log("    [Clone] Failed")
@@ -308,210 +424,238 @@ class BuilderRunner:
             if ".git" in dirs: dirs.remove(".git")
             for f in files:
                 if f.endswith(".py"): langs.add("Python")
-                if f.endswith(".cpp") or f.endswith(".cc") or f.endswith(".hpp"): langs.add("C++")
-                if f.endswith(".c") or f.endswith(".h"): langs.add("C")
-                if f == "CMakeLists.txt": langs.add("C++") # Strong indicator
-                if f == "Makefile": langs.add("C") # Could be C or C++
+                if f.endswith((".cpp", ".cc", ".hpp", "CMakeLists.txt")): langs.add("C++")
+                if f.endswith((".c", ".h", "Makefile")): langs.add("C")
         return list(langs)
 
-    # --- C/C++ Logic ---
     def _build_and_run_cpp(self, target_dir):
-        Logger.log("    [Build] Starting C/C++ Build...")
-        build_success = False
+        build_dir = os.path.join(target_dir, "build")
+        os.makedirs(build_dir, exist_ok=True)
         
-        # Method A: CMake
-        if os.path.exists(os.path.join(target_dir, "CMakeLists.txt")):
-            Logger.log("    [Build] Found CMakeLists.txt")
-            build_dir = os.path.join(target_dir, "build")
-            os.makedirs(build_dir, exist_ok=True)
-            try:
-                subprocess.run(["cmake", ".."], cwd=build_dir, check=True, capture_output=True)
-                subprocess.run(["make"], cwd=build_dir, check=True, capture_output=True)
-                Logger.log("    [Build] CMake Build Success")
-                build_success = True
-                self._find_and_run_binary(build_dir)
-            except subprocess.CalledProcessError as e:
-                Logger.log(f"    [Build] CMake Build Failed: {e.stderr.decode('utf-8', errors='ignore') if e.stderr else 'Unknown error'}")
-
-        # Method B: Makefile
-        elif os.path.exists(os.path.join(target_dir, "Makefile")):
-            Logger.log("    [Build] Found Makefile")
-            try:
-                subprocess.run(["make"], cwd=target_dir, check=True, capture_output=True)
-                Logger.log("    [Build] Make Success")
-                build_success = True
-                self._find_and_run_binary(target_dir)
-            except subprocess.CalledProcessError as e:
-                Logger.log(f"    [Build] Make Failed: {e.stderr.decode('utf-8', errors='ignore') if e.stderr else 'Unknown error'}")
-        
-        # Method C: Simple Compile (Fallback)
-        else:
-            Logger.log("    [Build] No build system found. Trying to compile main file...")
-            main_file = None
-            for f in os.listdir(target_dir):
-                if f.lower() in ["main.cpp", "main.c", "app.cpp", "test.cpp"]:
-                    main_file = f
-                    break
+        try:
+            # 1. CMake
+            if os.path.exists(os.path.join(target_dir, "CMakeLists.txt")):
+                Logger.log("    [Build C++] Found CMakeLists.txt")
+                cmake_cmd = ["cmake", "..", "-DBUILD_EXAMPLES=ON", "-DBUILD_TESTS=ON"]
+                subprocess.run(cmake_cmd, cwd=build_dir, check=True, capture_output=True)
+                subprocess.run(["make", "-j4"], cwd=build_dir, check=True, capture_output=True)
+                self._find_and_run_binary(build_dir) # Look in build dir first
+                self._find_and_run_binary(os.path.join(target_dir, "bin")) # Standard bin output
+                return True
             
-            if main_file:
-                compiler = "g++" if main_file.endswith("cpp") else "gcc"
-                out_bin = os.path.join(target_dir, "a.out")
-                try:
-                    subprocess.run([compiler, main_file, "-o", out_bin], cwd=target_dir, check=True, capture_output=True)
-                    Logger.log(f"    [Build] Compiled {main_file} successfully")
-                    build_success = True
-                    self._run_binary(out_bin)
-                except subprocess.CalledProcessError as e:
-                    Logger.log(f"    [Build] Compilation Failed: {e.stderr.decode('utf-8', errors='ignore')}")
+            # 2. Makefile
+            elif os.path.exists(os.path.join(target_dir, "Makefile")):
+                Logger.log("    [Build C++] Found Makefile")
+                subprocess.run(["make", "-j4"], cwd=target_dir, check=True, capture_output=True)
+                self._find_and_run_binary(target_dir)
+                return True
+            
+            # 3. Simple Compile Fallback
             else:
-                Logger.log("    [Build] No main file found to compile.")
+                for f in os.listdir(target_dir):
+                    if f.lower() in ["main.cpp", "main.c", "demo.cpp", "test.cpp"]:
+                        Logger.log(f"    [Build C++] Compiling single file: {f}")
+                        compiler = "g++" if f.endswith("cpp") else "gcc"
+                        subprocess.run([compiler, f, "-o", "a.out"], cwd=target_dir, check=True, capture_output=True)
+                        self._run_binary(os.path.join(target_dir, "a.out"))
+                        return True
+        except Exception as e:
+            Logger.log(f"    [Build C++] Failed: {e}")
+        return False
 
     def _find_and_run_binary(self, search_dir):
-        # Heuristic: Find newest executable file
+        if not os.path.exists(search_dir): return
         candidates = []
-        for root, dirs, files in os.walk(search_dir):
+        for root, _, files in os.walk(search_dir):
             for f in files:
                 path = os.path.join(root, f)
-                if os.access(path, os.X_OK) and not f.endswith(".sh") and not f.endswith(".py") and not os.path.isdir(path):
-                    candidates.append(path)
+                # Filter out standard junk, look for executable bit
+                if os.access(path, os.X_OK) and not f.endswith((".sh", ".py", ".o", ".so", ".a", ".cmake")):
+                    if "test" in f.lower() or "example" in f.lower() or "demo" in f.lower() or "main" in f.lower() or "benchmark" in f.lower():
+                        candidates.append(path)
         
+        # If we found specific targets, run them. If not, pick any executable.
         if candidates:
-            # Sort by modification time
-            candidates.sort(key=os.path.getmtime, reverse=True)
-            target = candidates[0]
-            self._run_binary(target)
+             # Run up to 2 examples
+            for binary in candidates[:2]:
+                self._run_binary(binary)
         else:
-            Logger.log("    [Run] No executable binary found after build.")
+             # Fallback scan for ANY executable if no "demo/test" found
+             for root, _, files in os.walk(search_dir):
+                for f in files:
+                    path = os.path.join(root, f)
+                    if os.access(path, os.X_OK) and not f.endswith((".sh", ".py", ".o", ".so", ".a", ".cmake")):
+                        self._run_binary(path)
+                        return # Run just one generic one
 
     def _run_binary(self, binary_path):
-        Logger.log(f"    [Run] Executing {os.path.basename(binary_path)}...")
+        Logger.log(f"    [Run C++] Executing: {os.path.basename(binary_path)}")
         try:
             proc = subprocess.Popen([binary_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                out, err = proc.communicate(timeout=5)
-                Logger.log(f"    [Run] Output:\n{out.decode('utf-8', errors='ignore')}")
+                out, _ = proc.communicate(timeout=10) # Increased timeout
+                Logger.log(f"        Output: {out.decode('utf-8', errors='ignore')[:500]}...")
             except subprocess.TimeoutExpired:
                 proc.kill()
-                Logger.log("    [Run] Process ran for 5s (Service/Long-running).")
+                Logger.log("        Process ran for 10s (Success - Timeout Reached)")
         except Exception as e:
-            Logger.log(f"    [Run] Execution failed: {e}")
+            Logger.log(f"        Execution failed: {e}")
 
-    # --- Python Logic ---
     def _install_python_deps(self, target_dir):
-        # A. requirements.txt
+        # 1. Standard requirements.txt
         if os.path.exists(os.path.join(target_dir, "requirements.txt")):
-            Logger.log("    [Install] Found requirements.txt")
-            try:
-                subprocess.run([self.pip_bin, "install", "-r", "requirements.txt"], 
-                               cwd=target_dir, capture_output=True, timeout=120)
-                Logger.log("    [Install] requirements.txt installed")
-            except Exception as e:
-                Logger.log(f"    [Install] requirements.txt failed: {e}")
-
-        # B. setup.py
-        if os.path.exists(os.path.join(target_dir, "setup.py")):
-            Logger.log("    [Install] Found setup.py")
-            try:
-                subprocess.run([self.pip_bin, "install", "."], 
-                               cwd=target_dir, capture_output=True, timeout=120)
-            except Exception:
-                pass
+            subprocess.run([self.pip_bin, "install", "-r", "requirements.txt"], cwd=target_dir, capture_output=True)
+        # 2. Modern pyproject.toml / setup.py
+        elif os.path.exists(os.path.join(target_dir, "setup.py")) or os.path.exists(os.path.join(target_dir, "pyproject.toml")):
+            subprocess.run([self.pip_bin, "install", "."], cwd=target_dir, capture_output=True)
 
     def _attempt_run_python(self, target_dir):
-        candidates = ["main.py", "app.py", "demo.py", "test.py", "agent.py", "run.py"]
-        ran_something = False
-        for f in os.listdir(target_dir):
-            if f in candidates:
-                Logger.log(f"    [Run] Attempting to run {f}...")
-                try:
-                    proc = subprocess.Popen([self.python_bin, f], cwd=target_dir, 
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    try:
-                        out, err = proc.communicate(timeout=5)
-                        Logger.log(f"    [Run] {f} finished (Exit: {proc.returncode})")
-                        if out: Logger.log(f"    [Output] {out.decode('utf-8', errors='ignore')[:200]}...")
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
-                        Logger.log(f"    [Run] {f} ran for 5s (likely a service/loop). Success.")
-                    
-                    ran_something = True
-                    break 
-                except Exception as e:
-                    Logger.log(f"    [Run] Error running {f}: {e}")
+        # Broad search for entry points
+        candidates = []
+        priority_files = ["main.py", "app.py", "agent.py", "demo.py", "example.py"]
         
-        if not ran_something:
-            Logger.log("    [Run] No obvious Python entry point found.")
+        for root, _, files in os.walk(target_dir):
+            if "site-packages" in root or "venv" in root or ".git" in root: continue
+            
+            for f in files:
+                if not f.endswith(".py"): continue
+                path = os.path.join(root, f)
+                
+                # Check priority
+                if f.lower() in priority_files:
+                    candidates.insert(0, path) # Prepend priority
+                elif "example" in root.lower() or "demo" in root.lower():
+                     candidates.append(path)
+
+        if not candidates:
+             # Fallback: Find ANY python file that looks runnable (not __init__)
+             for root, _, files in os.walk(target_dir):
+                if "site-packages" in root or "venv" in root: continue
+                for f in files:
+                    if f.endswith(".py") and f != "__init__.py":
+                        candidates.append(os.path.join(root, f))
+
+        # Run up to 2 candidates
+        run_count = 0
+        success = False
+        for script in candidates[:2]:
+            try:
+                Logger.log(f"    [Run Py] Attempting: {os.path.relpath(script, target_dir)}")
+                # Run from the root of the repo to ensure imports work if PYTHONPATH isn't set
+                env = os.environ.copy()
+                env["PYTHONPATH"] = target_dir
+                
+                proc = subprocess.Popen([self.python_bin, script], cwd=target_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                try:
+                    out, _ = proc.communicate(timeout=10)
+                    Logger.log(f"        Output: {out.decode('utf-8', errors='ignore')[:300]}...")
+                    success = True
+                    run_count += 1
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    Logger.log("        Process ran for 10s (Success)")
+                    success = True
+                    run_count += 1
+            except Exception as e:
+                pass
+        
+        return success
 
 class AgentHunter:
     def __init__(self):
         self.config = ConfigManager.load_config()
-        self.net = NetworkUtils()
+        self.net = NetworkUtils(token=self.config.get("github_token"))
+        self.tracker = RepoTracker()
+        self.notifier = EmailNotifier(self.config)
+        
         self.page_collector = SourceCollector(self.net, self.config)
         self.api_collector = GitHubSearchCollector(self.net, self.config)
         self.analyzer = RepoAnalyzer(self.net, self.config)
         
-        ws = self.config.get("workspace_dir", "hunter_workspace")
-        if not os.path.exists(ws):
-            os.makedirs(ws)
+        ws = os.path.abspath(self.config.get("workspace_dir", "hunter_workspace"))
+        if not os.path.exists(ws): os.makedirs(ws)
         self.builder = BuilderRunner(ws)
+        self.report_data = []
 
     def run(self):
-        Logger.log("=== Agent Hunter Started ===")
+        Logger.log("=== Agent Hunter Started (Optimized) ===")
         
-        # 1. Collect from multiple sources
+        # 1. Collect
         candidates_map = {}
-        
-        # A. Page Scraping
-        page_candidates = self.page_collector.collect_candidates()
-        candidates_map.update(page_candidates)
-        
-        # B. API Search (if enabled)
-        if self.config.get("use_github_api", True):
-            api_candidates = self.api_collector.collect_candidates()
-            candidates_map.update(api_candidates)
+        candidates_map.update(self.page_collector.collect_candidates())
+        if self.config.get("use_github_api"):
+            candidates_map.update(self.api_collector.collect_candidates())
             
-        candidates = list(candidates_map.keys())
-        
-        # 2. Analyze & Filter
-        Logger.log(f"Analyzing {len(candidates)} candidates...")
+        # 2. Filter & Analyze
         valid_repos = []
-        
-        max_analyze = 30 
-        for i, url in enumerate(candidates):
-            if i >= max_analyze: break
-            
+        for url in candidates_map:
+            # Check tracker first
+            if not self.tracker.should_process(url):
+                Logger.log(f"Skipping known repo: {url}")
+                continue
+
             repo_data = self.analyzer.analyze(url)
             if repo_data:
-                repo_data['source_origin'] = candidates_map.get(url, "Unknown")
+                repo_data['source_origin'] = candidates_map[url]
                 valid_repos.append(repo_data)
                 
-                print(f"  + Match: {repo_data['name']} ({repo_data['stars']} stars)")
-                print(f"    URL:      {repo_data['url']}")
-                print(f"    Created:  {repo_data['created_at']}")
-                print(f"    Updated:  {repo_data['updated_at']}")
-                print(f"    Source:   {repo_data['source_origin']}")
-                print(f"    Purpose:  {repo_data['description'][:100]}..." if len(repo_data['description']) > 100 else f"    Purpose:  {repo_data['description']}")
-                
-                Logger.log(f"Match: {repo_data['name']} | Stars: {repo_data['stars']}")
-                Logger.log(f"  > URL: {repo_data['url']}")
-                Logger.log(f"  > Created: {repo_data['created_at']} | Updated: {repo_data['updated_at']}")
-            
-            time.sleep(0.5)
-            
-        valid_repos.sort(key=lambda x: x['score'], reverse=True)
-        
-        top_n = self.config.get("max_repos_to_process", 3)
-        targets = valid_repos[:top_n]
-        
-        Logger.log(f"Selected top {len(targets)} repositories:")
-        for t in targets:
-            Logger.log(f"  - {t['name']} (Score: {t['score']:.1f})")
+                # Log High Quality
+                if repo_data['is_high_quality']:
+                    Logger.log(f"*** HIGH QUALITY FOUND: {repo_data['name']} ***")
+                    Logger.log(f"    Reasons: {', '.join(repo_data['hq_reasons'])}")
+                    Logger.log(f"    Contributors: {repo_data['contributors']}")
 
+        # Sort: High Quality first, then Score
+        valid_repos.sort(key=lambda x: (x['is_high_quality'], x['score']), reverse=True)
+        
+        targets = valid_repos[:self.config.get("max_repos_to_process", 5)]
+        
         # 3. Build & Run
         for t in targets:
-            self.builder.process_repo(t)
+            build_success, repo_info = self.builder.process_repo(t)
+            self.report_data.append(repo_info)
             
+            # Update Tracker
+            status = "success" if build_success else "build_failed"
+            self.tracker.update(t['url'], status, {"stars": t['stars'], "hq": t['is_high_quality']})
+            
+            # Notify if HQ and Success
+            if t['is_high_quality'] and build_success:
+                Logger.log(f"    [Notify] Adding {t['name']} to notification list.")
+                self.notifier.add_success(t)
+        
+        # 4. Generate Markdown Summary
+        self.generate_report()
+
+        # Final Notification for any remaining buffered successes
+        if len(self.notifier.buffer) > 0:
+            self.notifier.send_notification()
+        
         Logger.log("=== Agent Hunter Finished ===")
+
+    def generate_report(self):
+        report_path = "hunter_readme.md"
+        Logger.log(f"[Report] Generating {report_path}...")
+        
+        lines = [
+            "# Agent Hunter 检索仓库报告",
+            f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
+            "## 检索仓库概述与编译执行情况\n",
+            "| 仓库名称 | 星数 | 状态 | 语言 | 概要说明 |",
+            "| :--- | :--- | :--- | :--- | :--- |"
+        ]
+        
+        for r in self.report_data:
+            status = "✅ 成功" if r['success'] else "❌ 失败"
+            langs = ", ".join(r.get('languages', []))
+            summary = r.get('readme_summary', '').replace('|', '\\|') # Escape pipe
+            lines.append(f"| [{r['name']}]({r['url']}) | {r['stars']} | {status} | {langs} | {summary} |")
+        
+        # Append to existing or create new? User wants a record, maybe append is better if it runs multiple times?
+        # But for now, let's just create/overwrite a fresh one for the session.
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        Logger.log(f"[Report] 报告已保存至 {report_path}")
         
 if __name__ == "__main__":
     agent = AgentHunter()
