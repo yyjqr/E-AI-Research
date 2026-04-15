@@ -1,0 +1,605 @@
+{
+  "main": {
+    "id": "895705ade08917a0",
+    "type": "split",
+    "children": [
+      {
+        "id": "ed15ee92a198c41e",
+        "type": "tabs",
+        "dimension": 84.4059405940594,
+        "children": [
+          {
+            "id": "cae20a86062814d6",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "创建链接.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "创建链接"
+            }
+          },
+          {
+            "id": "f746bebf3f787036",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Andriod框架.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Andriod框架"
+            }
+          },
+          {
+            "id": "39db2312a2d6b31e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "云服务器安全机制.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "云服务器安全机制"
+            }
+          },
+          {
+            "id": "e435f69672c2ad0a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "嵌入式和软件开发工具汇总.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "嵌入式和软件开发工具汇总"
+            }
+          },
+          {
+            "id": "339bd1ba0895aa5d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "linux和c-cpp开发编程汇总.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "linux和c-cpp开发编程汇总"
+            }
+          },
+          {
+            "id": "34c853bf363e1d1f",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "linux和c-cpp-20年开发迭代汇总.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "linux和c-cpp-20年开发迭代汇总"
+            }
+          },
+          {
+            "id": "007f6fe39479da93",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "mec/QGIS使用记录-V1-202502.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "QGIS使用记录-V1-202502"
+            }
+          },
+          {
+            "id": "577a4b891a12fb18",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "mec/视频流和编解码相关资料和定义--重要.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "视频流和编解码相关资料和定义--重要"
+            }
+          },
+          {
+            "id": "8d5bb6592a58088d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "战略与管理BLM.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "战略与管理BLM"
+            }
+          },
+          {
+            "id": "2912b4a1d865212e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "后装数字钥匙配对流程.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "后装数字钥匙配对流程"
+            }
+          },
+          {
+            "id": "0cb8d044e6bdc889",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.12.7"
+              },
+              "icon": "lucide-book-up",
+              "title": "版本说明 1.12.7"
+            }
+          },
+          {
+            "id": "7471388c811f59d8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "数字车钥匙配对流程评估.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "数字车钥匙配对流程评估"
+            }
+          },
+          {
+            "id": "ee4f8e5b44f9c564",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "后装数字钥匙配对流程-v1.1.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "后装数字钥匙配对流程-v1.1"
+            }
+          },
+          {
+            "id": "5bd9c59f30f655ce",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "移动机器人.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "移动机器人"
+            }
+          },
+          {
+            "id": "e6a147569cae03a2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "数字车钥匙市场前景.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "数字车钥匙市场前景"
+            }
+          },
+          {
+            "id": "f45d281e7ae9446a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "番禺设备和运维问题记录.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "番禺设备和运维问题记录"
+            }
+          },
+          {
+            "id": "3006d2d0a70e0ed5",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "后装数字车钥匙关门流程.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "后装数字车钥匙关门流程"
+            }
+          },
+          {
+            "id": "a93ffd105978455d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "后装车钥匙低电量关锁流程.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "后装车钥匙低电量关锁流程"
+            }
+          },
+          {
+            "id": "ee36296ebe1c4be9",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "股票数据分析.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "股票数据分析"
+            }
+          },
+          {
+            "id": "b851edf01c14bec2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "蓝牙测距算法.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "蓝牙测距算法"
+            }
+          },
+          {
+            "id": "1e5469bd363be6ec",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "OpenClaw-阿里巴巴.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "OpenClaw-阿里巴巴"
+            }
+          },
+          {
+            "id": "e2bed3df3ca44c6e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "ai价值和发展/AI应用价值挖掘.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "AI应用价值挖掘"
+            }
+          },
+          {
+            "id": "75a413373df6bf1d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "linux和c-cpp开发编程汇总.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "linux和c-cpp开发编程汇总"
+            }
+          },
+          {
+            "id": "08d205459c0d9dac",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "数字车钥匙配对流程评估.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "数字车钥匙配对流程评估"
+            }
+          },
+          {
+            "id": "3b2fc73ed5b1b958",
+            "type": "leaf",
+            "state": {
+              "type": "bases",
+              "state": {
+                "file": "未命名.base",
+                "viewName": "表格"
+              },
+              "icon": "lucide-table",
+              "title": "未命名"
+            }
+          },
+          {
+            "id": "137fed44039bf04a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "AI 与思维工具-1.2-20260415.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "AI 与思维工具-1.2-20260415"
+            }
+          },
+          {
+            "id": "4698ba49422c2942",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "ai价值和发展/投资分析，问题汇总.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "投资分析，问题汇总"
+            }
+          }
+        ],
+        "currentTab": 25
+      },
+      {
+        "id": "65d6d76957cb7790",
+        "type": "tabs",
+        "dimension": 15.594059405940595,
+        "children": [
+          {
+            "id": "0a442afc43549979",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "关系图谱"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "41b20e8b9cfc50ed",
+    "type": "split",
+    "children": [
+      {
+        "id": "2f22045b130fa339",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "351c0ba2f1f88465",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "8cddf9e6c2e87b3f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "30d8e78df6e94ee9",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "915dc77b727354d0",
+    "type": "split",
+    "children": [
+      {
+        "id": "7c7e51c47194cc05",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9e1e5cc9170c35f4",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "欢迎.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "欢迎 的反向链接列表"
+            }
+          },
+          {
+            "id": "9729a7404562c757",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "欢迎.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "欢迎 的出链列表"
+            }
+          },
+          {
+            "id": "6b799c5b0c71c846",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "f6f388b74505ff66",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "d061f23fb68c0528",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "欢迎.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "欢迎 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "137fed44039bf04a",
+  "lastOpenFiles": [
+    "未命名.base",
+    "AI 与思维工具-1.2-20260415.md",
+    "完美长方体.md",
+    "ai价值和发展/投资分析，问题汇总.md",
+    "未命名 2.md",
+    "数字车钥匙配对流程评估.md",
+    "蓝牙测距算法.md",
+    "未命名 3.md",
+    "linux和c-cpp开发编程汇总.md",
+    "linux和c-cpp-20年开发迭代汇总.md",
+    "ai价值和发展/ai价值图谱.md",
+    "ai和科技发展价值闭环.md",
+    "ai发展",
+    "未命名 1",
+    "未命名",
+    "ai价值和发展/AI应用价值挖掘.md",
+    "后装数字钥匙配对流程-v1.1.md",
+    "战略与管理BLM.md",
+    "未命名.md",
+    "ai价值和发展",
+    "mec/视频流和编解码相关资料和定义--重要.md",
+    "media/image1.png.md",
+    "media",
+    "mec/QGIS使用记录-V1-202502.md",
+    "数据库操作.md",
+    "OpenClaw-阿里巴巴.md",
+    "后装数字钥匙配对流程.md",
+    "数字车钥匙市场前景.md",
+    "移动机器人.md",
+    "番禺设备和运维问题记录.md",
+    "后装数字车钥匙关门流程.md",
+    "Pasted image 20260318124903.png",
+    "数据库操作",
+    "4245a09b17d1efbf684a2f3bebdb171b.png",
+    "Pasted image 20260209090624.png",
+    "mec"
+  ]
+}
